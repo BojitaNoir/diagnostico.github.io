@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Actividades Aleatorias</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+            padding: 16px;
+        }
+        
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+        
+        .description {
+            color: #7f8c8d;
+            margin-bottom: 20px;
+        }
+        
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        
+        .btn {
+            padding: 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-secondary {
+            background-color: #2ecc71;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #27ae60;
+        }
+        
+        /* Selector de tipo */
+        .filter-container {
+            margin-bottom: 20px;
+            display: none; /* Oculto por defecto */
+        }
+        
+        select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 1rem;
+        }
+        
+        /* Contenedor de resultados */
+        .results {
+            display: grid;
+            gap: 16px;
+        }
+        
+        /* Tarjeta de actividad */
+        .activity-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .activity-card h3 {
+            color: #2c3e50;
+            margin-bottom: 12px;
+            font-size: 1.2rem;
+        }
+        
+        .activity-detail {
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: #7f8c8d;
+        }
+        
+        /* Loader */
+        .loader {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .loader-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Mensajes de error */
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            display: none;
+        }
+        
+        /* Media queries para responsive design */
+        @media (min-width: 768px) {
+            .container {
+                max-width: 80%;
+            }
+            
+            .button-container {
+                flex-direction: row;
+            }
+            
+            .btn {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Actividades Aleatorias</h1>
+            <p class="description">Encuentra actividades para combatir el aburrimiento</p>
+        </header>
+        
+        <div class="button-container">
+            <button id="randomBtn" class="btn btn-primary">Actividad Aleatoria</button>
+            <button id="filterBtn" class="btn btn-secondary">Filtrar por Tipo</button>
+        </div>
+        
+        <div id="filterContainer" class="filter-container">
+            <select id="typeSelector">
+                <option value="">Selecciona un tipo</option>
+                <option value="education">Educación</option>
+                <option value="recreational">Recreativo</option>
+                <option value="social">Social</option>
+                <option value="charity">Caridad</option>
+                <option value="cooking">Cocina</option>
+                <option value="relaxation">Relajación</option>
+                <option value="busywork">Tareas ocupadas</option>
+            </select>
+            <button id="searchBtn" class="btn btn-primary" style="margin-top:12px; width:100%;">Buscar</button>
+        </div>
+        
+        <div id="loader" class="loader">
+            <div class="loader-spinner"></div>
+            <p>Cargando actividades...</p>
+        </div>
+        
+        <div id="error" class="error"></div>
+        
+        <div id="results" class="results"></div>
+    </div>
+
+    <script>
+        const randomBtn = document.getElementById('randomBtn');
+        const filterBtn = document.getElementById('filterBtn');
+        const filterContainer = document.getElementById('filterContainer');
+        const typeSelector = document.getElementById('typeSelector');
+        const resultsContainer = document.getElementById('results');
+        const loader = document.getElementById('loader');
+        const errorContainer = document.getElementById('error');
+        const searchBtn = document.getElementById('searchBtn');
+
+        // Usar un proxy para evitar CORS
+        const PROXY = 'https://api.allorigins.win/get?url=';
+        const RANDOM_ACTIVITY_URL = 'https://bored-api.appbrewery.com/random';
+        const FILTER_ACTIVITY_URL = 'https://bored-api.appbrewery.com/filter';
+
+        function showLoader() {
+            loader.style.display = 'block';
+            errorContainer.style.display = 'none';
+        }
+
+        function hideLoader() {
+            loader.style.display = 'none';
+        }
+
+        function showError(message) {
+            errorContainer.textContent = message;
+            errorContainer.style.display = 'block';
+        }
+
+        // Evitamos el CORS
+        async function fetchData(url) {
+            showLoader();
+            try {
+                const response = await fetch(PROXY + encodeURIComponent(url));
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
+                const data = await response.json();
+                if (data && data.contents) {
+                    return JSON.parse(data.contents);
+                }
+                return data;
+            } catch (error) {
+                showError(`Error al obtener datos: ${error.message}`);
+                return null;
+            } finally {
+                hideLoader();
+            }
+        }
+        
+        function displayActivities(activities) {
+            resultsContainer.innerHTML = '';
+            
+            const activitiesArray = Array.isArray(activities) ? activities : [activities];
+            
+            if (activitiesArray.length === 0) {
+                resultsContainer.innerHTML = '<div class="activity-card"><p>No se encontraron actividades con estos filtros.</p></div>';
+                return;
+            }
+            
+            activitiesArray.forEach(activity => {
+                const activityCard = document.createElement('div');
+                activityCard.className = 'activity-card';
+                
+                activityCard.innerHTML = `
+                    <h3>${activity.activity}</h3>
+                    <div class="activity-detail">
+                        <span class="detail-label">Tipo:</span>
+                        <span>${activity.type}</span>
+                    </div>
+                    <div class="activity-detail">
+                        <span class="detail-label">Participantes:</span>
+                        <span>${activity.participants}</span>
+                    </div>
+                    <div class="activity-detail">
+                        <span class="detail-label">Precio:</span>
+                        <span>${activity.price}</span>
+                    </div>
+                    <div class="activity-detail">
+                        <span class="detail-label">Accesibilidad:</span>
+                        <span>${activity.accessibility}</span>
+                    </div>
+                    <div class="activity-detail">
+                        <span class="detail-label">Duración:</span>
+                        <span>${activity.duration || 'No especificada'}</span>
+                    </div>
+                    <div class="activity-detail">
+                        <span class="detail-label">Apto para niños:</span>
+                        <span>${activity.kidFriendly ? 'Sí' : 'No'}</span>
+                    </div>
+                    ${activity.link ? `
+                    <div class="activity-detail">
+                        <span class="detail-label">Enlace:</span>
+                        <a href="${activity.link}" target="_blank">Más información</a>
+                    </div>` : ''}
+                `;
+                
+                resultsContainer.appendChild(activityCard);
+            });
+        }
+        
+        randomBtn.addEventListener('click', async () => {
+            errorContainer.style.display = 'none';
+            const activity = await fetchData(RANDOM_ACTIVITY_URL);
+            if (activity) {
+                displayActivities(activity);
+            }
+        });
+
+        filterBtn.addEventListener('click', () => {
+            const isVisible = filterContainer.style.display === 'block';
+            filterContainer.style.display = isVisible ? 'none' : 'block';
+        });
+        searchBtn.addEventListener('click', async () => {
+            const type = typeSelector.value;
+            if (!type) {
+                showError('Por favor, selecciona un tipo de actividad');
+                return;
+            }
+            const url = `${FILTER_ACTIVITY_URL}?type=${type}`;
+            const activities = await fetchData(url);
+            if (activities) {
+                displayActivities(activities);
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const activity = await fetchData(RANDOM_ACTIVITY_URL);
+            if (activity) {
+                displayActivities(activity);
+            }
+        });
+    </script>
+</body>
+</html>
